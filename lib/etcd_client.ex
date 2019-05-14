@@ -1,5 +1,15 @@
 defmodule EtcdClient do
 
+  def child_spec(opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 500
+    }
+  end
+
   def start_link(opts) do
     channel = get_connection(opts.host, opts.port)
     Registry.register(:etcd_registry, opts.name, channel)
@@ -11,7 +21,7 @@ defmodule EtcdClient do
   end
 
   def close_connection(conn) do
-    channel = elem(Enum.fetch!(Registry.lookup(:region_registry, conn), 0),1)
+    channel = elem(Enum.fetch!(Registry.lookup(:etcd_registry, conn), 0),1)
     GRPC.Stub.disconnect(channel)
     Registry.unregister(:etcd_registry, conn)
   end
@@ -45,15 +55,17 @@ defmodule EtcdClient do
   def keep_lease_alive(conn, id) do
     channel = lookup_channel(conn)
     EtcdClient.StreamSupervisor.start_child(channel, id, EtcdClient.Lease)
+  end
 
+  def start_watcher(conn, id) do
+    channel = lookup_channel(conn)
+    EtcdClient.StreamSupervisor.start_child(channel, id, EtcdClient.Watcher)
 
   end
 
-  def keep_alive_loop(stream, id) do
-    live_request = Etcdserverpb.LeaseKeepAliveRequest.new(ID: id)
-    GRPC.Client.Stream.send_request(stream, live_request, end_stream: false, timeout: :infinity)
-    :timer.sleep(1000)
-    keep_alive_loop(stream, id)
+  def add_watch(start_key, end_key, watch_id) do
+    create_request = Etcdserverpb.WatchCreateRequest.new(key: start_key, range_end: end_key, watch_id: watch_id)
+    EtcdClient.Watcher.add_watch(create_request, watch_id)
   end
 
 end
