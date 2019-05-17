@@ -21,13 +21,20 @@ defmodule EtcdClient do
   end
 
   def close_connection(conn) do
-    channel = elem(Enum.fetch!(Registry.lookup(:etcd_registry, conn), 0),1)
+    channel = lookup_channel(conn)
     GRPC.Stub.disconnect(channel)
     Registry.unregister(:etcd_registry, conn)
   end
 
   defp lookup_channel(conn) do
     channel = elem(Enum.fetch!(Registry.lookup(:etcd_registry, conn), 0),1)
+  end
+
+  def put_kv_pair(conn, key, value) do
+    channel = lookup_channel(conn)
+    request = Etcdserverpb.PutRequest.new(key: key, value: value, prev_kv: true)
+    {:ok, response} = Etcdserverpb.KV.Stub.put(channel,request)
+    response
   end
 
   def put_kv_pair(conn, key, value, lease_id) do
@@ -63,9 +70,13 @@ defmodule EtcdClient do
 
   end
 
-  def add_watch(start_key, end_key, watch_id) do
-    create_request = Etcdserverpb.WatchCreateRequest.new(key: start_key, range_end: end_key, watch_id: watch_id)
-    EtcdClient.Watcher.add_watch(create_request, watch_id)
+  def add_watch(start_key, end_key, watcher_id, watch_id, from) do
+    watch_create_request = Etcdserverpb.WatchCreateRequest.new(key: start_key, range_end: end_key, prev_kv: true, progress_notify: true, watch_id: watch_id)
+    GenServer.cast(EtcdClient.Watcher.via_tuple(watcher_id), {:add_watch, watch_create_request, from})
+  end
+
+  def send_watch_event(pid, event)do
+    Process.send(pid, {:watch_event, event}, [])
   end
 
 end

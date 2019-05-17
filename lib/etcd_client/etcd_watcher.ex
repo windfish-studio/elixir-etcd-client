@@ -15,7 +15,7 @@ defmodule EtcdClient.Watcher do
     {:ok, %__MODULE__{ stream: stream, watcher_id: args.id}}
   end
 
-  defp via_tuple(watcher_id) do
+  def via_tuple(watcher_id) do
     {:via, Registry, {:etcd_registry, watcher_id}}
   end
 
@@ -23,10 +23,6 @@ defmodule EtcdClient.Watcher do
     GenServer.call(via_tuple(watcher_id), :get_state, 5000)
   end
 
-  def add_watch(watch_create_request, watcher_id) do
-    GenServer.call(via_tuple(watcher_id), {:add_watch, watch_create_request}, 500000)
-
-  end
   @impl true
   def handle_call(:get_state, _from,  state) do
     response = %{
@@ -35,11 +31,14 @@ defmodule EtcdClient.Watcher do
     }
     {:reply, response, state}
   end
+
   @impl true
-  def handle_call({:add_watch, watch_create_request}, _from, state) do
-    watch_request = Etcdserverpb.WatchRequest.new(create_request: watch_create_request)
+  def handle_cast({:add_watch, watch_create_request, from}, state) do
+    watch_request = Etcdserverpb.WatchRequest.new(request_union: {:create_request, watch_create_request})
     GRPC.Client.Stream.send_request(state.stream, watch_request, end_stream: false, timeout: :infinity)
-    {:reply, state.stream, state}
+    {:ok, replies} = GRPC.Stub.recv(state.stream, timeout: :infinity)
+    Enum.each(replies, fn(reply) -> EtcdClient.send_watch_event(from, reply) end)
+    {:noreply, replies}
   end
 
   @impl true
