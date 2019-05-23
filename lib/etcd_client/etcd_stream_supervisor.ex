@@ -8,8 +8,8 @@ defmodule EtcdClient.StreamSupervisor do
 
   def start_child(channel, id, module) do
     child = %{
-      id: Integer.to_string(id),
-      start: {module, :start_link, [%{channel: channel, id: id}]}
+      id: id,
+      start: {module, :start_link, [[channel: channel, id: id]]}
     }
 
     DynamicSupervisor.start_child(__MODULE__, child)

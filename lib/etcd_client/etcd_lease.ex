@@ -1,6 +1,11 @@
 defmodule EtcdClient.Lease do
   use GenServer
 
+  @type t :: %__MODULE__{
+    stream: GRPC.Server.Stream.t(),
+    lease_id: integer
+  }
+
   defstruct stream: nil,
             lease_id: nil
 
@@ -10,9 +15,9 @@ defmodule EtcdClient.Lease do
 
   @impl true
   def init([args]) do
-    stream = Etcdserverpb.Lease.Stub.lease_keep_alive(args.channel, timeout: :infinity)
+    stream = Etcdserverpb.Lease.Stub.lease_keep_alive(args[:channel], timeout: :infinity)
     send(self(), :keep_alive)
-    {:ok, %__MODULE__{ stream: stream, lease_id: args.id}}
+    {:ok, %__MODULE__{ stream: stream, lease_id: args[:id]}}
   end
 
   @impl true
