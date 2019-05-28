@@ -9,7 +9,7 @@ defmodule EtcdClient do
       shutdown: 500
     }
   end
-  @doc """
+  @moduledoc """
     Opens a grpc connection channel to etcd with hostname and port provided in opts keyword list.
     Registers the channel with name provided in opts keyword list. Returns tuple in form of {:ok, pid}
 
@@ -17,8 +17,8 @@ defmodule EtcdClient do
     add to config.exs:
       config :myapp,
         etcd: [
-          hostname: System.get_env("ETCD_SERVICE"),
-          port: System.get_env("ETCD_PORT")
+          hostname: "localhost",
+          port: "2379"
         ]
 
     add to supervisor child list:
@@ -48,9 +48,11 @@ defmodule EtcdClient do
     {:ok, channel} = get_connection(opts[:hostname],opts[:port])
     Registry.register(:etcd_registry, opts[:name], channel)
   end
-  @doc """
-    Returns grpc channel for registration in start_link.
-  """
+
+  defp via_tuple(id) do
+    {:via, Registry, {:etcd_registry, id}}
+  end
+
   @spec get_connection(String.t, String.t) :: {:ok, GRPC.Channel.t()} | {:error, String.t}
   defp get_connection(host, port) do
     GRPC.Stub.connect(host <> ":" <> port,adapter_opts: %{http2_opts: %{keepalive: :infinity}})
@@ -64,10 +66,7 @@ defmodule EtcdClient do
     GRPC.Stub.disconnect(channel)
     Registry.unregister(:etcd_registry, conn)
   end
-  @doc """
-    Returns the grpc channel registered under conn argument
-  """
-  @spec lookup_channel(String.t) :: GRPC.Channel.t()
+
   defp lookup_channel(conn) do
     channel = elem(Enum.fetch!(Registry.lookup(:etcd_registry, conn), 0),1)
   end
@@ -101,6 +100,17 @@ defmodule EtcdClient do
     request = Etcdserverpb.RangeRequest.new(key: key)
     Etcdserverpb.KV.Stub.range(channel, request)
   end
+
+  @doc """
+    Sends a range request to etcd on grpc channel registered under conn argument. Returns the kv range
+    between the key and range arguments if any exist.
+  """
+  @spec get_kv_range(String.t, String.t, String.t) :: {:ok, Etcdserverpb.RangeResponse.t()} | {:error, GRPC.RPCError.t()}
+  def get_kv_range(conn, key, range) do
+    channel = lookup_channel(conn)
+    request = Etcdserverpb.RangeRequest.new(key: key, range_end: range)
+    Etcdserverpb.KV.Stub.range(channel, request)
+  end
   @doc """
     Sends a delete range request to etcd on grpc channel registered under conn argument deleting the kv pair
     associated with the key argument.
@@ -109,6 +119,17 @@ defmodule EtcdClient do
   def delete_kv_pair(conn, key) do
     channel = lookup_channel(conn)
     delete_request = Etcdserverpb.DeleteRangeRequest.new(key: key, prev_kv: true)
+    Etcdserverpb.KV.Stub.delete_range(channel, delete_request)
+  end
+
+  @doc """
+    Sends a delete range request to etcd on grpc channel registered under conn argument deleting the kv range
+    between the key and range arguments.
+  """
+  @spec delete_kv_range(String.t, String.t, String.t) :: {:ok, Etcdserverpb.DeleteRangeResponse.t()} | {:error, GRPC.RPCError.t()}
+  def delete_kv_range(conn, key, range) do
+    channel = lookup_channel(conn)
+    delete_request = Etcdserverpb.DeleteRangeRequest.new(key: key, range_end: range, prev_kv: true)
     Etcdserverpb.KV.Stub.delete_range(channel, delete_request)
   end
 
@@ -124,12 +145,29 @@ defmodule EtcdClient do
   end
   @doc """
     Adds an EtcdClient.Lease genserver to supervision tree. Lease genserver opens an etcd lease keep alive
-    stream and sends keep alive requests for given lease id every second
+    stream and sends keep alive requests for given lease id every keep_alive_interval in miliseconds
   """
-  @spec keep_lease_alive(String.t, integer) :: {:ok, pid}
-  def keep_lease_alive(conn, id) do
+  @spec keep_lease_alive(String.t, integer, integer) :: {:ok, pid}
+  def keep_lease_alive(conn, id, keep_alive_interval) do
     channel = lookup_channel(conn)
-    EtcdClient.StreamSupervisor.start_child(channel, id, EtcdClient.Lease)
+    EtcdClient.StreamSupervisor.start_lease(channel, id, keep_alive_interval, EtcdClient.Lease)
+  end
+  @doc """
+    Revokes an etcd lease with the given id and kills it's keep alive process if it exists
+  """
+  @spec revoke_lease(String.t, integer) :: {:ok, Etcdserverpb.LeaseRevokeResponse.t()} | {:error, GRPC.RPCError.t()}
+  def revoke_lease(conn, id) do
+    channel = lookup_channel(conn)
+    name = "lease" <> Integer.to_string(id)
+    revoke_request = Etcdserverpb.LeaseRevokeRequest.new(ID: id)
+    cond do
+      Registry.lookup(:etcd_registry, name) == [] ->
+        Etcdserverpb.Lease.Stub.lease_revoke(channel, revoke_request)
+      true ->
+        pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, name), 0),0)
+        EtcdClient.StreamSupervisor.kill_child(pid)
+        Etcdserverpb.Lease.Stub.lease_revoke(channel, revoke_request)
+    end
   end
   @doc """
     Adds an EtcdClient.Watcher genserver to supervision tree. Watch genserver opens an etcd watch stream
@@ -139,17 +177,21 @@ defmodule EtcdClient do
   @spec start_watcher(String.t, integer) :: {:ok, pid}
   def start_watcher(conn, id) do
     channel = lookup_channel(conn)
-    EtcdClient.StreamSupervisor.start_child(channel, id, EtcdClient.Watcher)
+    EtcdClient.StreamSupervisor.start_watcher(channel, id, EtcdClient.Watcher)
 
   end
   @doc """
     Adds an etcd watch on key range to the Watcher with watcher_id. The watcher will send etcd watch events to the
     pid provided in the from argument.
   """
-  @spec add_watch(String.t(), String.t(), String.t(), integer, pid) :: :ok
-  def add_watch(start_key, end_key, watcher_id, watch_id, from) do
-    watch_create_request = Etcdserverpb.WatchCreateRequest.new(key: start_key, range_end: end_key, prev_kv: true, progress_notify: true, watch_id: watch_id)
-    GenServer.cast(EtcdClient.Watcher.via_tuple(watcher_id), {:add_watch, watch_create_request, from})
+  @spec add_watch(String.t(), String.t(), String.t(), integer) :: :ok
+  def add_watch(start_key, end_key, watcher_id, watch_id) do
+    watch_create_request = Etcdserverpb.WatchCreateRequest.new(watch_id: watch_id, key: start_key, range_end: end_key, prev_kv: true, progress_notify: true)
+    GenServer.cast(EtcdClient.Watcher.via_tuple(watcher_id), {:add_watch, watch_create_request})
+  end
+  @spec listen_watcher(String.t, pid) :: :ok
+  def listen_watcher(watcher_id, from) do
+    GenServer.cast(EtcdClient.Watcher.via_tuple(watcher_id), {:listen, from})
   end
   @doc """
     Sends etcd watch events to the given pid
