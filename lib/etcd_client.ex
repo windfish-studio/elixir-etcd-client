@@ -10,8 +10,10 @@ defmodule EtcdClient do
     }
   end
   @moduledoc """
-    Opens a grpc connection channel to etcd with hostname and port provided in opts keyword list.
-    Registers the channel with name provided in opts keyword list. Returns tuple in form of {:ok, pid}
+    This module provides basic ETCD watch, lease, and kv functionality, it is incomplete and still in development.
+
+    Opens a grpc connection channel to etcd with hostname and port provided in 'opts' keyword list.
+    Registers the channel with name provided in 'opts' keyword list.
 
     To start from a supervisor:
     add to config.exs:
@@ -21,10 +23,10 @@ defmodule EtcdClient do
           port: "2379"
         ]
 
-    add to supervisor child list:
+    Add to supervisor child list:
         {EtcdClient, [Keyword.put(Application.get_env(:myapp, :etcd), :name, ETCD)]}
 
-    To use above connection pass the name you provided as the conn argument to EtcdClient functions:
+    To use above connection pass the name you provided as the 'conn' argument to EtcdClient functions:
         {:ok, response} = EtcdClient.put_kv_pair(ETCD, key, value)
 
     To establish an etcd lease and associate a kv pair:
@@ -35,16 +37,19 @@ defmodule EtcdClient do
     To establish an etcd watch over a range of keys:
         {:ok, pid} = EtcdClient.start_watcher(ETCD, watcher_id, from)
         EtcdClient.add_watch(start_range, end_range, watcher_id, watch_id)
-      Events recieved by the watcher will be sent to the pid provided in the from argument,
-      to retrieve them if using a GenServer add:
+    Events recieved by the watcher will be sent to the pid provided in the from argument,
+    to retrieve them if using a GenServer add:
         def handle_info({:watch_event, event} , state) do
           watch_response = elem(event, 1)
           Enum.each(watch_response.events, fn(e) -> process_watch_event(e) end)
           {:noreply, 1}
         end
-      If using the latest master branch of etcd (3.3+git) you can add multiple watches to the same
-      watcher.  Older versions will ignore the watch_id and you will need to start a separate
-      watcher(with unique ids) for each individual watch.
+    If using the latest master branch of etcd (3.3+git) you can add multiple watches to the same
+    watcher.  Older versions will ignore the watch_id and you will need to start a separate
+    watcher(with unique ids) for each individual watch.
+
+    For more information on etcd request and response types see the generated proto files in /lib/priv
+    on github.
   """
   @spec start_link(keyword()) :: {:ok, pid} | {:error, String.t}
   def start_link(opts) do

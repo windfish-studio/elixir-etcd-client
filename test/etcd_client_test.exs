@@ -87,7 +87,6 @@ defmodule EtcdClientTest do
     {:ok, response} = EtcdClient.start_lease(ETCD, 3, 10)
     {:ok, response} = EtcdClient.get_leases(ETCD)
     assert length(response.leases) == 3
-    IO.inspect(response)
   end
 
   test "add, cancel, listen to a watch" do

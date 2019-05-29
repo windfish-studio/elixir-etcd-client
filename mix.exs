@@ -6,12 +6,20 @@ defmodule EtcdClient.MixProject do
       app: :etcd_client,
       version: "0.1.0",
       elixir: "~> 1.8",
+      build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      package: package(),
+      description: description(),
+      deps: deps(),
+      name: "EtcdClient",
+      source_url: "https://github.com/windfish-studio/elixir-etcd-client",
+      docs: [
+        main: "EtcdClient"
+      ]
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
+
   def application do
     [
       extra_applications: [:logger],
@@ -19,10 +27,22 @@ defmodule EtcdClient.MixProject do
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
+
   defp deps do
     [
+      {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:grpc, "~> 0.4.0-alpha.2"}
     ]
+  end
+
+  defp package() do
+    [
+      licenses: ["GPL 3.0"],
+      links: %{"GitHub" => "https://github.com/windfish-studio/elixir-etcd-client"}
+    ]
+  end
+
+  defp description() do
+    "ETCD client with basic functionality for elixir"
   end
 end
