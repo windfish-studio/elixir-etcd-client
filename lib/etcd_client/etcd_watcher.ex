@@ -3,50 +3,30 @@ defmodule EtcdClient.Watcher do
 
   @type t :: %__MODULE__{
     stream: GRPC.Server.Stream.t(),
-    watcher_id: String.t()
+    watcher_id: String.t(),
+    from: pid
   }
 
   defstruct stream: nil,
-            watcher_id: nil
-
+            watcher_id: nil,
+            from: nil
 
   def start_link(args) do
-    name = via_tuple(args[:id])
-    GenServer.start_link(__MODULE__, [args], name: name)
+    GenServer.start_link(__MODULE__, [args])
   end
 
   @impl true
   def init([args]) do
     stream = Etcdserverpb.Watch.Stub.watch(args[:channel], timeout: :infinity)
-
-    {:ok, %__MODULE__{ stream: stream, watcher_id: args[:id]}}
-  end
-
-  def via_tuple(watcher_id) do
-    {:via, Registry, {:etcd_registry, watcher_id}}
-  end
-
-  @spec get_state(String.t()) :: EtcdClient.Watcher.t()
-  def get_state(watcher_id) do
-    GenServer.call(via_tuple(watcher_id), :get_state, 5000)
+    Registry.register(:etcd_registry, args[:id], stream)
+    send(self(), :listen)
+    {:ok, %__MODULE__{ stream: stream, watcher_id: args[:id], from: args[:from]}}
   end
 
   @impl true
-  def handle_call(:get_state, _from,  state) do
-    {:reply, state, state}
-  end
-
-  @impl true
-  def handle_cast({:listen, from}, state) do
+  def handle_info(:listen, state) do
     {:ok, replies} = GRPC.Stub.recv(state.stream, timeout: :infinity)
-    Enum.each(replies, fn(reply) -> EtcdClient.send_watch_event(from, reply) end)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:add_watch, watch_create_request}, state) do
-    watch_request = Etcdserverpb.WatchRequest.new(request_union: {:create_request, watch_create_request})
-    GRPC.Client.Stream.send_request(state.stream, watch_request, end_stream: false, timeout: :infinity)
+    Enum.each(replies, fn(reply) -> send_watch_event(state.from, reply) end)
     {:noreply, state}
   end
 
@@ -60,4 +40,10 @@ defmodule EtcdClient.Watcher do
     {:noreply, state}
   end
 
+  defp send_watch_event(pid, event)do
+    Process.send(pid, {:watch_event, event}, [])
+  end
+
 end
+
+

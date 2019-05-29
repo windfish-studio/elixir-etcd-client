@@ -15,10 +15,10 @@ defmodule EtcdClient.StreamSupervisor do
     DynamicSupervisor.start_child(__MODULE__, child)
   end
 
-  def start_watcher(channel, id, module) do
+  def start_watcher(channel, id, from, module) do
     child = %{
       id: id,
-      start: {module, :start_link, [[channel: channel, id: id]]}
+      start: {module, :start_link, [[channel: channel, id: id, from: from]]}
     }
 
     DynamicSupervisor.start_child(__MODULE__, child)

@@ -22,7 +22,7 @@ defmodule EtcdClient.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:grpc, github: "tony612/grpc-elixir"}
+      {:grpc, "~> 0.4.0-alpha.2"}
     ]
   end
 end
