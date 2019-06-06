@@ -1,6 +1,6 @@
 # EtcdClient
 
-**TODO: Add description**
+**ETCD Client for elixir**
 
 ## Installation
 
@@ -15,7 +15,7 @@ def deps do
 end
 ```
 
-This module provides basic ETCD watch, lease, and kv functionality, it is incomplete and still in development.
+## Usage
 
 Opens a grpc connection channel to etcd with hostname and port provided in 'opts' keyword list.
 Registers the channel with name provided in 'opts' keyword list.
