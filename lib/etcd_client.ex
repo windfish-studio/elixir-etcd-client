@@ -210,7 +210,7 @@ defmodule EtcdClient do
     that etcd watches can be added to. EtcdClient.Watcher supports multiple etcd watches on a single stream. If more than
     one stream is needed start another EtcdClient.Watcher with a different id.
   """
-  @spec start_watcher(String.t(), integer, pid) :: {:ok, pid}
+  @spec start_watcher(String.t(), String.t(), pid) :: {:ok, pid}
   def start_watcher(conn, id, from) do
     channel = lookup_channel(conn)
     EtcdClient.StreamSupervisor.start_watcher(channel, id, from, EtcdClient.Watcher)
