@@ -170,14 +170,24 @@ defmodule EtcdClient do
     grant_request = Etcdserverpb.LeaseGrantRequest.new(ID: id, TTL: ttl)
     Etcdserverpb.Lease.Stub.lease_grant(channel, grant_request)
   end
+
   @doc """
-    Adds an EtcdClient.Lease to supervision tree. EtcdClient.Lease opens an etcd lease keep alive
+    Sends a lease grant request to etcd on grpc channel registered under 'conn' with time to live 'ttl'
+  """
+  @spec start_lease(String.t(), integer) :: {:ok, Etcdserverpb.LeaseGrantResponse.t()} | {:error, GRPC.RPCError.t()}
+  def start_lease(conn, ttl) do
+    channel = lookup_channel(conn)
+    grant_request = Etcdserverpb.LeaseGrantRequest.new(TTL: ttl)
+    Etcdserverpb.Lease.Stub.lease_grant(channel, grant_request)
+  end
+  @doc """
+    Starts an EtcdClient.Lease. EtcdClient.Lease opens an etcd lease keep alive
     stream and sends keep alive requests for given 'id' every 'keep_alive_interval' in miliseconds
   """
   @spec keep_lease_alive(String.t(), integer, integer) :: {:ok, pid}
   def keep_lease_alive(conn, id, keep_alive_interval) do
     channel = lookup_channel(conn)
-    EtcdClient.StreamSupervisor.start_lease(channel, id, keep_alive_interval, EtcdClient.Lease)
+    EtcdClient.Lease.start_link([channel: channel, id: id, keep_alive_interval: keep_alive_interval])
   end
   @doc """
     Revokes an etcd lease with the given 'id' and kills it's keep alive process if it exists
@@ -192,7 +202,7 @@ defmodule EtcdClient do
         Etcdserverpb.Lease.Stub.lease_revoke(channel, revoke_request)
       true ->
         pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, name), 0),0)
-        EtcdClient.StreamSupervisor.kill_child(pid)
+        send(pid, :kill_me)
         Etcdserverpb.Lease.Stub.lease_revoke(channel, revoke_request)
     end
   end
@@ -206,15 +216,16 @@ defmodule EtcdClient do
     Etcdserverpb.Lease.Stub.lease_leases(channel, leases_request)
   end
   @doc """
-    Adds an EtcdClient.Watcher to supervision tree with the given 'id'. Opens an etcd watch stream
+    Starts an EtcdClient.Watcher with the given 'id'. Opens an etcd watch stream
     that etcd watches can be added to. EtcdClient.Watcher supports multiple etcd watches on a single stream. If more than
-    one stream is needed start another EtcdClient.Watcher with a different id.
+    one stream is needed start another EtcdClient.Watcher with a different id.  Watch events will be sent to the pid provided
+    in the from argument.
   """
   @spec start_watcher(String.t(), String.t(), pid) :: {:ok, pid}
   def start_watcher(conn, id, from) do
     channel = lookup_channel(conn)
-    EtcdClient.StreamSupervisor.start_watcher(channel, id, from, EtcdClient.Watcher)
-
+    EtcdClient.Watcher.start_link([channel: channel, id: id, from: from])
+    EtcdClient.Watcher.start_listener(id)
   end
   @doc """
     Adds an etcd watch on key range to the EtcdClient.Watcher with given 'watcher_id'. Function to start a basic watch
@@ -222,19 +233,17 @@ defmodule EtcdClient do
   """
   @spec add_watch(String.t(), String.t(), String.t(), integer) :: GRPC.Client.Stream.t()
   def add_watch(start_key, end_key, watcher_id, watch_id) do
-    stream = lookup_channel(watcher_id)
     watch_create_request = Etcdserverpb.WatchCreateRequest.new(watch_id: watch_id, key: start_key, range_end: end_key)
     watch_request = Etcdserverpb.WatchRequest.new(request_union: {:create_request, watch_create_request})
-    GRPC.Client.Stream.send_request(stream, watch_request, end_stream: false, timeout: :infinity)
+    EtcdClient.Watcher.send_watch_request(watch_request, watcher_id)
   end
   @doc """
     Adds a watch to EtcdClient.Watcher with given 'watcher_id' using provided 'watch_create_request'
   """
   @spec add_watch(String.t(), Etcdserverpb.WatchCreateRequest.t()) :: GRPC.Client.Stream.t()
   def add_watch(watcher_id, watch_create_request) do
-    stream = lookup_channel(watcher_id)
     watch_request = Etcdserverpb.WatchRequest.new(request_union: {:create_request, watch_create_request})
-    GRPC.Client.Stream.send_request(stream, watch_request, end_stream: false, timeout: :infinity)
+    EtcdClient.Watcher.send_watch_request(watch_request, watcher_id)
   end
   @doc """
     Sends a watch cancel request to etcd on the stream for provided 'watcher_id' to cancel the watch
@@ -242,10 +251,15 @@ defmodule EtcdClient do
   """
   @spec cancel_watch(String.t(), String.t()) :: GRPC.Client.Stream.t()
   def cancel_watch(watcher_id, watch_id) do
-    stream = lookup_channel(watcher_id)
     watch_cancel_request = Etcdserverpb.WatchCancelRequest.new(watch_id: watch_id)
     watch_request = Etcdserverpb.WatchRequest.new(request_union: {:cancel_request, watch_cancel_request})
-    GRPC.Client.Stream.send_request(stream, watch_request, end_stream: false, timeout: :infinity)
+    EtcdClient.Watcher.send_watch_request(watch_request, watcher_id)
+  end
+
+  def add_lock(conn, name, lease_id) do
+    channel = lookup_channel(conn)
+    request = V3lockpb.LockRequest.new(name: name, lease: lease_id)
+    V3lockpb.Lock.Stub.lock(channel, request, timeout: :infinity)
   end
 
   def kill_watcher(watcher_id) do
@@ -253,8 +267,7 @@ defmodule EtcdClient do
       Registry.lookup(:etcd_registry, watcher_id) == [] ->
         {:error, "No process associated with watcher_id"}
       true ->
-        pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, watcher_id), 0),0)
-        EtcdClient.StreamSupervisor.kill_child(pid)
+        EtcdClient.Watcher.kill_watcher(watcher_id)
     end
   end
 

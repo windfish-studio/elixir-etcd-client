@@ -72,8 +72,11 @@ defmodule EtcdClientTest do
     EtcdClient.put_kv_pair(ETCD, "foo", "bar", 1)
     {:ok, response} = EtcdClient.get_kv_pair(ETCD, "foo")
     assert Enum.fetch!(response.kvs, 0).lease == 1
+    name = "lease" <> Integer.to_string(1)
+    pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, name), 0),0)
     EtcdClient.revoke_lease(ETCD, 1)
     EtcdClient.revoke_lease(ETCD, 2)
+    assert Process.alive?(pid) == false
     {:ok, response} = EtcdClient.get_kv_pair(ETCD, "foo")
     assert response.kvs == []
     EtcdClient.delete_kv_pair(ETCD, "foo")
@@ -112,10 +115,10 @@ defmodule EtcdClientTest do
     event = listen()
     assert Enum.fetch!(elem(event, 1).events, 0).type == :DELETE
     assert elem(event, 1).watch_id == 1
+    pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, "watcher1"), 0),0)
     response = EtcdClient.kill_watcher("watcher1")
-    assert response == :ok
-    response = EtcdClient.kill_watcher("watcher1")
-    assert response == {:error, "No process associated with watcher_id"}
+    assert response == :dead
+    assert Process.alive?(pid) == false
     EtcdClient.close_connection(ETCD)
   end
 
@@ -133,8 +136,24 @@ defmodule EtcdClientTest do
     EtcdClient.delete_kv_pair(ETCD, "foo")
     event = listen()
     assert Enum.fetch!(elem(event, 1).events, 0).type == :DELETE
+  end
 
-
+  test "locks" do
+    EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
+    {:ok, response} = EtcdClient.start_lease(ETCD, 5, 10)
+    {:ok, response} = EtcdClient.start_lease(ETCD, 6, 10)
+    request = Etcdserverpb.PutRequest.new(key: "foo5", value: "bar", lease: 5, prev_kv: true)
+    response = EtcdClient.put_kv_pair(ETCD, request)
+    IO.inspect(response)
+    response = EtcdClient.put_kv_pair(ETCD, request)
+    IO.inspect(response)
+    response = EtcdClient.put_kv_pair(ETCD, request)
+    IO.inspect(response)
+    response = EtcdClient.add_lock(ETCD, "test", 5)
+    IO.inspect(response)
+    response = EtcdClient.add_lock(ETCD, "test", 6)
+    IO.inspect(response)
+    EtcdClient.close_connection(ETCD)
   end
 
   def listen() do

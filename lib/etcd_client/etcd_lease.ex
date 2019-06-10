@@ -25,6 +25,11 @@ defmodule EtcdClient.Lease do
   end
 
   @impl true
+  def handle_info(:kill_me, state) do
+    {:stop, :normal, state}
+  end
+
+  @impl true
   def handle_info({:gun_data, _pid, _ref, _test, _data}, state) do
     {:noreply, state}
   end

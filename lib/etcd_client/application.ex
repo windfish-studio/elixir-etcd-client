@@ -8,9 +8,7 @@ defmodule EtcdClient.Application do
   def start(_type, _args) do
     # List all child processes to be supervised
     children = [
-      {Registry, keys: :unique, name: :etcd_registry},
-      {EtcdClient.StreamSupervisor, [:start_link]},
-      {Task.Supervisor, name: EtcdClient.TaskSupervisor}
+      {Registry, keys: :unique, name: :etcd_registry}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
