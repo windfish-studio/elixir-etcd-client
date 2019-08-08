@@ -7,7 +7,7 @@ defmodule EtcdClient.WatchListener do
 
   def run(args) do
     stream = Etcdserverpb.Watch.Stub.watch(args[:channel], timeout: :infinity)
-    GenServer.reply(args[:from], stream)
+    GenServer.reply(args[:from], {:ok, stream})
     {:ok, replies} = GRPC.Stub.recv(stream, timeout: :infinity)
     Enum.each(replies, fn(reply) -> EtcdClient.Watcher.send_watch_event(args[:watcher], reply) end)
   end
