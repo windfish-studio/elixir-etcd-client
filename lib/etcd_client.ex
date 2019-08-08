@@ -72,7 +72,7 @@ defmodule EtcdClient do
   end
 
   defp lookup_channel(conn) do
-    channel = elem(Enum.fetch!(Registry.lookup(:etcd_registry, conn), 0),1)
+    elem(Enum.fetch!(Registry.lookup(:etcd_registry, conn), 0),1)
   end
   @doc """
     Sends a put request to etcd on grpc channel registered under 'conn' with 'key' and 'value'
@@ -221,7 +221,7 @@ defmodule EtcdClient do
     one stream is needed start another EtcdClient.Watcher with a different id.  Watch events will be sent to the pid provided
     in the from argument.
   """
-  @spec start_watcher(String.t(), String.t(), pid) :: {:ok, pid}
+  @spec start_watcher(String.t(), String.t(), pid()) :: {:ok, pid()}
   def start_watcher(conn, id, from) do
     channel = lookup_channel(conn)
     EtcdClient.Watcher.start_link([channel: channel, id: id, from: from])
@@ -231,7 +231,7 @@ defmodule EtcdClient do
     Adds an etcd watch on key range to the EtcdClient.Watcher with given 'watcher_id'. Function to start a basic watch
     with default etcd options
   """
-  @spec add_watch(String.t(), String.t(), String.t(), integer) :: GRPC.Client.Stream.t()
+  @spec add_watch(String.t(), String.t(), String.t(), integer) :: :ok
   def add_watch(start_key, end_key, watcher_id, watch_id) do
     watch_create_request = Etcdserverpb.WatchCreateRequest.new(watch_id: watch_id, key: start_key, range_end: end_key)
     watch_request = Etcdserverpb.WatchRequest.new(request_union: {:create_request, watch_create_request})
@@ -240,7 +240,7 @@ defmodule EtcdClient do
   @doc """
     Adds a watch to EtcdClient.Watcher with given 'watcher_id' using provided 'watch_create_request'
   """
-  @spec add_watch(String.t(), Etcdserverpb.WatchCreateRequest.t()) :: GRPC.Client.Stream.t()
+  @spec add_watch(String.t(), Etcdserverpb.WatchCreateRequest.t()) :: :ok
   def add_watch(watcher_id, watch_create_request) do
     watch_request = Etcdserverpb.WatchRequest.new(request_union: {:create_request, watch_create_request})
     EtcdClient.Watcher.send_watch_request(watch_request, watcher_id)
@@ -249,7 +249,7 @@ defmodule EtcdClient do
     Sends a watch cancel request to etcd on the stream for provided 'watcher_id' to cancel the watch
     with provided 'watch_id'
   """
-  @spec cancel_watch(String.t(), String.t()) :: GRPC.Client.Stream.t()
+  @spec cancel_watch(String.t(), String.t()) :: :ok
   def cancel_watch(watcher_id, watch_id) do
     watch_cancel_request = Etcdserverpb.WatchCancelRequest.new(watch_id: watch_id)
     watch_request = Etcdserverpb.WatchRequest.new(request_union: {:cancel_request, watch_cancel_request})

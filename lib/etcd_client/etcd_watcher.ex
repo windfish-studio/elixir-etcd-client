@@ -3,7 +3,7 @@ defmodule EtcdClient.Watcher do
 
   @type t :: %__MODULE__{
     stream: GRPC.Server.Stream.t(),
-    channel: GRPC.Server.Channel.t(),
+    channel: GRPC.Channel.t(),
     watcher_id: String.t(),
     from: pid
   }
@@ -27,7 +27,7 @@ defmodule EtcdClient.Watcher do
   end
 
   @impl true
-  def handle_call(:get_stream, from, state) do
+  def handle_call(:get_stream, _from, state) do
     {:reply, state.stream, state}
   end
 
@@ -80,6 +80,7 @@ defmodule EtcdClient.Watcher do
   def get_stream(watcher_id) do
     GenServer.call(via_tuple(watcher_id), :get_stream)
   end
+
 
   def send_watch_request(watch_request, watcher_id) do
     GenServer.cast(via_tuple(watcher_id), {:add_watch, watch_request})

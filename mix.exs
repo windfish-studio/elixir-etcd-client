@@ -15,6 +15,11 @@ defmodule EtcdClient.MixProject do
       source_url: "https://github.com/windfish-studio/elixir-etcd-client",
       docs: [
         main: "EtcdClient"
+      ],
+      dialyzer: [
+        ignore_warnings: ".dialyzer_ignore.exs",
+        plt_add_deps: :transitive,
+        plt_add_apps: [ :mix, :grpc ]
       ]
     ]
   end
@@ -30,6 +35,7 @@ defmodule EtcdClient.MixProject do
 
   defp deps do
     [
+      {:dialyxir, "~> 1.0.0-rc.6", only: :dev, runtime: false},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:grpc, "~> 0.4.0-alpha.2"}
     ]
