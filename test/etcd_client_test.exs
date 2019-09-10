@@ -18,6 +18,7 @@ defmodule EtcdClientTest do
     EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
     response = EtcdClient.put_kv_pair(ETCD, "foo", "bar")
     assert elem(response, 0) == :ok
+    _response = EtcdClient.put_kv_pair(ETCD, "foo", "bar")
     request = Etcdserverpb.PutRequest.new(key: "foo", value: "coo", prev_kv: true)
     response = EtcdClient.put_kv_pair(ETCD, request)
     assert elem(response, 1).prev_kv.key == "foo"
@@ -29,7 +30,7 @@ defmodule EtcdClientTest do
     EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
     EtcdClient.put_kv_pair(ETCD, "foo", "bar")
     {:ok, response} = EtcdClient.get_kv_pair(ETCD, "foo")
-    assert Enum.fetch!(response.kvs, 0).value == "bar"
+    assert Enum.fetch!(response, 0).value == "bar"
     EtcdClient.delete_kv_pair(ETCD, "foo")
     EtcdClient.close_connection(ETCD)
   end
@@ -39,57 +40,57 @@ defmodule EtcdClientTest do
     EtcdClient.put_kv_pair(ETCD, "foo", "bar")
     EtcdClient.put_kv_pair(ETCD, "foo1", "bar")
     {:ok, response} = EtcdClient.get_kv_range(ETCD, "foo", "foo2")
-    assert Enum.fetch!(response.kvs, 0).value == "bar"
-    assert Enum.fetch!(response.kvs, 1).value == "bar"
+    assert Enum.fetch!(response, 0).value == "bar"
+    assert Enum.fetch!(response, 1).value == "bar"
     request = Etcdserverpb.RangeRequest.new(key: "foo", range_end: "foo1", limit: 1)
     {:ok, response} = EtcdClient.get_kv_range(ETCD, request)
     assert length(response.kvs) == 1
-    EtcdClient.delete_kv_range(ETCD, "foo", "foo1")
+    {:ok, response} = EtcdClient.delete_kv_range(ETCD, "foo", "foo2")
+    assert response == 2
     {:ok, response} = EtcdClient.get_kv_range(ETCD, "foo", "foo1")
-    assert length(response.kvs) == 0
+    assert length(response) == 0
     EtcdClient.put_kv_pair(ETCD, "foo", "bar")
     EtcdClient.put_kv_pair(ETCD, "foo1", "bar")
     delete_request = Etcdserverpb.DeleteRangeRequest.new(key: "foo", range_end: "foo1", prev_kv: true)
     EtcdClient.delete_kv_range(ETCD, delete_request)
     {:ok, response} = EtcdClient.get_kv_range(ETCD, "foo", "foo1")
-    assert length(response.kvs) == 0
+    assert length(response) == 0
     EtcdClient.close_connection(ETCD)
   end
 
   test "delete kv pair" do
     EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
     EtcdClient.put_kv_pair(ETCD, "foo", "bar")
-    {:ok, response} = EtcdClient.delete_kv_pair(ETCD, "foo")
+    {:ok, _response} = EtcdClient.delete_kv_pair(ETCD, "foo")
     {:ok, response} = EtcdClient.get_kv_pair(ETCD, "foo")
-    assert response.kvs == []
+    assert response == []
   end
 
   test "start, end a lease" do
     EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
-    {:ok, response} = EtcdClient.start_lease(ETCD, 1, 2)
+    {:ok, _response} = EtcdClient.start_lease(ETCD, 1, 2)
     EtcdClient.keep_lease_alive(ETCD, 1, 1000)
     :timer.sleep(2000)
-    EtcdClient.put_kv_pair(ETCD, "foo", "bar", 1)
+    {:ok, _response} = EtcdClient.put_kv_pair(ETCD, "foo", "bar", 1)
     {:ok, response} = EtcdClient.get_kv_pair(ETCD, "foo")
-    assert Enum.fetch!(response.kvs, 0).lease == 1
+    assert Enum.fetch!(response, 0).lease == 1
     name = "lease" <> Integer.to_string(1)
     pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, name), 0),0)
-    EtcdClient.revoke_lease(ETCD, 1)
-    EtcdClient.revoke_lease(ETCD, 2)
+    {:ok, _response} = EtcdClient.revoke_lease(ETCD, 1)
     assert Process.alive?(pid) == false
     {:ok, response} = EtcdClient.get_kv_pair(ETCD, "foo")
-    assert response.kvs == []
+    assert response == []
     EtcdClient.delete_kv_pair(ETCD, "foo")
     EtcdClient.close_connection(ETCD)
   end
 
   test "lease leases" do
     EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
-    {:ok, response} = EtcdClient.start_lease(ETCD, 1, 10)
-    {:ok, response} = EtcdClient.start_lease(ETCD, 2, 10)
-    {:ok, response} = EtcdClient.start_lease(ETCD, 3, 10)
+    {:ok, _response} = EtcdClient.start_lease(ETCD, 1, 10)
+    {:ok, _response} = EtcdClient.start_lease(ETCD, 2, 10)
+    {:ok, _response} = EtcdClient.start_lease(ETCD, 3, 10)
     {:ok, response} = EtcdClient.get_leases(ETCD)
-    assert length(response.leases) == 3
+    assert length(response) == 3
   end
 
   test "add, cancel, listen to a watch" do
@@ -117,7 +118,7 @@ defmodule EtcdClientTest do
     assert elem(event, 1).watch_id == 1
     pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, "watcher1"), 0),0)
     response = EtcdClient.kill_watcher("watcher1")
-    assert response == :dead
+    assert response == :ok
     assert Process.alive?(pid) == false
     EtcdClient.close_connection(ETCD)
   end
@@ -140,19 +141,14 @@ defmodule EtcdClientTest do
 
   test "locks" do
     EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
-    {:ok, response} = EtcdClient.start_lease(ETCD, 5, 10)
-    {:ok, response} = EtcdClient.start_lease(ETCD, 6, 10)
+    {:ok, _response} = EtcdClient.start_lease(ETCD, 5, 10)
+    {:ok, _response} = EtcdClient.start_lease(ETCD, 6, 10)
     request = Etcdserverpb.PutRequest.new(key: "foo5", value: "bar", lease: 5, prev_kv: true)
-    response = EtcdClient.put_kv_pair(ETCD, request)
-    IO.inspect(response)
-    response = EtcdClient.put_kv_pair(ETCD, request)
-    IO.inspect(response)
-    response = EtcdClient.put_kv_pair(ETCD, request)
-    IO.inspect(response)
-    response = EtcdClient.add_lock(ETCD, "test", 5)
-    IO.inspect(response)
-    response = EtcdClient.add_lock(ETCD, "test", 6)
-    IO.inspect(response)
+    EtcdClient.put_kv_pair(ETCD, request)
+    EtcdClient.put_kv_pair(ETCD, request)
+    EtcdClient.put_kv_pair(ETCD, request)
+    EtcdClient.add_lock(ETCD, "test", 5)
+    EtcdClient.add_lock(ETCD, "test", 6)
     EtcdClient.close_connection(ETCD)
   end
 

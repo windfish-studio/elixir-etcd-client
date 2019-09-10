@@ -77,26 +77,40 @@ defmodule EtcdClient do
   end
   @doc """
     Sends a put request to etcd on grpc channel registered under 'conn' with 'key' and 'value'
-    as the key value pair to be put
+    as the key value pair to be put. Returns {:ok, %{key, value}}
   """
-  @spec put_kv_pair(conn :: term(), key :: binary(), value :: binary()) :: {:ok, Etcdserverpb.PutResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec put_kv_pair(conn :: term(), key :: binary(), value :: binary()) :: {:ok, map()} | {:error, GRPC.RPCError.t()}
   def put_kv_pair(conn, key, value) do
     channel = lookup_channel(conn)
     request = Etcdserverpb.PutRequest.new(key: key, value: value)
-    Etcdserverpb.KV.Stub.put(channel,request)
+    response = Etcdserverpb.KV.Stub.put(channel,request)
+    case response do
+      {:ok, _return} ->
+        {:ok, %{key: key, value: value}}
+      {:error, _error} ->
+        response
+    end
   end
   @doc """
     Sends a PUT request to etcd on grpc channel registered under 'conn' with 'key' and 'value'
     as the key value pair to be put and assigined to the lease provided in 'lease_id'
+    Returns {:ok, %{key, value, lease}}
   """
-  @spec put_kv_pair(term(), binary(), binary(), integer) :: {:ok, Etcdserverpb.PutResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec put_kv_pair(term(), binary(), binary(), integer) :: {:ok, map()} | {:error, GRPC.RPCError.t()}
   def put_kv_pair(conn, key, value, lease_id) do
     channel = lookup_channel(conn)
     request = Etcdserverpb.PutRequest.new(key: key, value: value, lease: lease_id)
-    Etcdserverpb.KV.Stub.put(channel,request)
+    response = Etcdserverpb.KV.Stub.put(channel,request)
+    case response do
+      {:ok, _return} ->
+        {:ok, %{key: key, value: value, lease: lease_id}}
+      {:error, _error} ->
+        response
+    end
   end
   @doc """
-    Sends a PUT request to etcd with provided 'put_request'
+    Sends a PUT request to etcd with provided 'put_request' and returns full put response.  Use this function if you
+    need prev_kv data or the full put response
   """
   @spec put_kv_pair(term(), Etcdserverpb.PutRequest.t()) :: {:ok, Etcdserverpb.PutResponse.t()} | {:error, GRPC.RPCError.t()}
   def put_kv_pair(conn, put_request) do
@@ -105,27 +119,44 @@ defmodule EtcdClient do
   end
   @doc """
     Sends a range request to etcd on grpc channel registered under 'conn'. Returns the kv pair
-    associated with 'key' if it exists
+    associated with 'key' if it exists in the form of a list of key/value/lease maps
   """
-  @spec get_kv_pair(term(), binary()) :: {:ok, Etcdserverpb.RangeResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec get_kv_pair(term(), binary()) :: {:ok, list()} | {:error, GRPC.RPCError.t()}
   def get_kv_pair(conn, key) do
     channel = lookup_channel(conn)
     request = Etcdserverpb.RangeRequest.new(key: key)
-    Etcdserverpb.KV.Stub.range(channel, request)
+    response = Etcdserverpb.KV.Stub.range(channel, request)
+    case response do
+      {:ok, return} ->
+        {:ok, Enum.map(return.kvs, fn(kv) ->
+          %{key: kv.key, value: kv.value, lease: kv.lease}
+        end)}
+      {:error, _error} ->
+        response
+    end
   end
 
   @doc """
     Sends a range request to etcd on grpc channel registered under 'conn'. Returns the kv range
-    between 'key' and 'range' if any exist
+    between 'key' and 'range' if any exist in the form of a list of key/value/lease maps
   """
-  @spec get_kv_range(term(), binary(), binary()) :: {:ok, Etcdserverpb.RangeResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec get_kv_range(term(), binary(), binary()) :: {:ok, list()} | {:error, GRPC.RPCError.t()}
   def get_kv_range(conn, key, range) do
     channel = lookup_channel(conn)
     request = Etcdserverpb.RangeRequest.new(key: key, range_end: range)
-    Etcdserverpb.KV.Stub.range(channel, request)
+    response = Etcdserverpb.KV.Stub.range(channel, request)
+    case response do
+      {:ok, return} ->
+        {:ok, Enum.map(return.kvs, fn(kv) ->
+          %{key: kv.key, value: kv.value, lease: kv.lease}
+        end)}
+      {:error, _error} ->
+        response
+    end
   end
   @doc """
-    Sends a range request to etcd using provided 'range_request'
+    Sends a range request to etcd using provided 'range_request' and returns the full etcd range response.
+    Use this function if you need the full range response
   """
   @spec get_kv_range(term(), Etcdserverpb.RangeRequest.t()) :: {:ok, Etcdserverpb.RangeResponse.t()} | {:error, GRPC.RPCError.t()}
   def get_kv_range(conn, range_request) do
@@ -134,27 +165,40 @@ defmodule EtcdClient do
   end
   @doc """
     Sends a delete range request to etcd on grpc channel registered under 'conn' deleting the kv pair
-    associated with 'key'
+    associated with 'key'. Returns {:ok, number_off_keys_deleted}
   """
-  @spec delete_kv_pair(term(), binary()) :: {:ok, Etcdserverpb.DeleteRangeResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec delete_kv_pair(term(), binary()) :: {:ok, integer()} | {:error, GRPC.RPCError.t()}
   def delete_kv_pair(conn, key) do
     channel = lookup_channel(conn)
     delete_request = Etcdserverpb.DeleteRangeRequest.new(key: key)
-    Etcdserverpb.KV.Stub.delete_range(channel, delete_request)
+    response = Etcdserverpb.KV.Stub.delete_range(channel, delete_request)
+    case response do
+      {:ok, return} ->
+        {:ok, return.deleted}
+      {:error, _error} ->
+        response
+    end
   end
 
   @doc """
     Sends a delete range request to etcd on grpc channel registered under 'conn' deleting the kv range
-    between 'key' and 'range'
+    between 'key' and 'range'. Returns {:ok, number_of_keys_deleted}
   """
-  @spec delete_kv_range(term(), binary(), binary()) :: {:ok, Etcdserverpb.DeleteRangeResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec delete_kv_range(term(), binary(), binary()) :: {:ok, integer()} | {:error, GRPC.RPCError.t()}
   def delete_kv_range(conn, key, range) do
     channel = lookup_channel(conn)
     delete_request = Etcdserverpb.DeleteRangeRequest.new(key: key, range_end: range)
-    Etcdserverpb.KV.Stub.delete_range(channel, delete_request)
+    response = Etcdserverpb.KV.Stub.delete_range(channel, delete_request)
+    case response do
+      {:ok, return} ->
+        {:ok, return.deleted}
+      {:error, _error} ->
+        response
+    end
   end
   @doc """
-    Sends a delete range request to etcd using provided 'delete_range_request'
+    Sends a delete range request to etcd using provided 'delete_range_request' and returns the full delete range response.
+    Use this function if you need the full response
   """
   @spec delete_kv_range(term(), Etcdserverpb.DeleteRangeRequest.t()) :: {:ok, Etcdserverpb.DeleteRangeResponse.t()} | {:error, GRPC.RPCError.t()}
   def delete_kv_range(conn, delete_range_request) do
@@ -164,22 +208,36 @@ defmodule EtcdClient do
 
   @doc """
     Sends a lease grant request to etcd on grpc channel registered under 'conn' with 'id' and time to live 'ttl'
+    Returns {:ok, %{lease_id, lease_ttl, error}}
   """
-  @spec start_lease(term(), integer(), integer()) :: {:ok, Etcdserverpb.LeaseGrantResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec start_lease(term(), integer(), integer()) :: {:ok, map()} | {:error, GRPC.RPCError.t()}
   def start_lease(conn, id, ttl) do
     channel = lookup_channel(conn)
     grant_request = Etcdserverpb.LeaseGrantRequest.new(ID: id, TTL: ttl)
-    Etcdserverpb.Lease.Stub.lease_grant(channel, grant_request)
+    response = Etcdserverpb.Lease.Stub.lease_grant(channel, grant_request)
+    case response do
+      {:ok, return} ->
+        {:ok, %{lease_id: Map.get(return, :ID), lease_ttl: Map.get(return, :TTL), error: return.error}}
+      {:error, _error} ->
+        response
+    end
   end
 
   @doc """
     Sends a lease grant request to etcd on grpc channel registered under 'conn' with time to live 'ttl'
+    Returns {:ok, %{lease_id, lease_ttl, error}}
   """
-  @spec start_lease(term(), integer()) :: {:ok, Etcdserverpb.LeaseGrantResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec start_lease(term(), integer()) :: {:ok, map()} | {:error, GRPC.RPCError.t()}
   def start_lease(conn, ttl) do
     channel = lookup_channel(conn)
     grant_request = Etcdserverpb.LeaseGrantRequest.new(TTL: ttl)
-    Etcdserverpb.Lease.Stub.lease_grant(channel, grant_request)
+    response = Etcdserverpb.Lease.Stub.lease_grant(channel, grant_request)
+    case response do
+      {:ok, return} ->
+        {:ok, %{lease_id: Map.get(return, :ID), lease_ttl: Map.get(return, :TTL), error: return.error}}
+      {:error, _error} ->
+        response
+    end
   end
   @doc """
     Starts an EtcdClient.Lease. EtcdClient.Lease opens an etcd lease keep alive
@@ -193,7 +251,7 @@ defmodule EtcdClient do
   @doc """
     Revokes an etcd lease with the given 'id' and kills it's keep alive process if it exists
   """
-  @spec revoke_lease(term(), integer()) :: {:ok, Etcdserverpb.LeaseRevokeResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec revoke_lease(term(), integer()) :: {:ok, :revoked} | {:error, GRPC.RPCError.t()}
   def revoke_lease(conn, id) do
     channel = lookup_channel(conn)
     name = "lease" <> Integer.to_string(id)
@@ -201,20 +259,30 @@ defmodule EtcdClient do
     cond do
       Registry.lookup(:etcd_registry, name) == [] ->
         Etcdserverpb.Lease.Stub.lease_revoke(channel, revoke_request)
+        {:ok, :revoked}
       true ->
         pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, name), 0),0)
         send(pid, :kill_me)
         Etcdserverpb.Lease.Stub.lease_revoke(channel, revoke_request)
+        {:ok, :revoked}
     end
   end
   @doc """
-    Returns all active leases on the given etcd 'conn'
+    Returns all active leases on the given etcd 'conn' as a list of lease_ids
   """
-  @spec get_leases(term()) :: {:ok, Etcdserverpb.LeaseLeasesResponse.t()} | {:error, GRPC.RPCError.t()}
+  @spec get_leases(term()) :: {:ok, list()} | {:error, GRPC.RPCError.t()}
   def get_leases(conn) do
     channel = lookup_channel(conn)
     leases_request = Etcdserverpb.LeaseLeasesRequest.new()
-    Etcdserverpb.Lease.Stub.lease_leases(channel, leases_request)
+    response = Etcdserverpb.Lease.Stub.lease_leases(channel, leases_request)
+    case response do
+      {:ok, return} ->
+        {:ok, Enum.map(return.leases, fn(lease) ->
+          Map.get(lease, :ID)
+        end)}
+      {:error, _error} ->
+        response
+    end
   end
   @doc """
     Starts an EtcdClient.Watcher with the given 'id'. Opens an etcd watch stream
