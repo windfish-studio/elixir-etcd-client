@@ -102,8 +102,8 @@ defmodule EtcdClient do
     request = Etcdserverpb.PutRequest.new(key: key, value: value, lease: lease_id)
     response = Etcdserverpb.KV.Stub.put(channel,request)
     case response do
-      {:ok, _return} ->
-        {:ok, %{key: key, value: value, lease: lease_id}}
+      {:ok, %{header: %{revision: rev}}} ->
+        {:ok, %{key: key, value: value, lease: lease_id, rev: rev}}
       {:error, _error} ->
         response
     end
@@ -129,7 +129,7 @@ defmodule EtcdClient do
     case response do
       {:ok, return} ->
         {:ok, Enum.map(return.kvs, fn(kv) ->
-          %{key: kv.key, value: kv.value, lease: kv.lease}
+          %{key: kv.key, value: kv.value, lease: kv.lease, rev: kv.mod_revision}
         end)}
       {:error, _error} ->
         response
@@ -148,7 +148,7 @@ defmodule EtcdClient do
     case response do
       {:ok, return} ->
         {:ok, Enum.map(return.kvs, fn(kv) ->
-          %{key: kv.key, value: kv.value, lease: kv.lease}
+          %{key: kv.key, value: kv.value, lease: kv.lease, rev: kv.mod_revision}
         end)}
       {:error, _error} ->
         response
