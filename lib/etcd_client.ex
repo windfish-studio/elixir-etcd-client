@@ -54,7 +54,9 @@ defmodule EtcdClient do
   @spec start_link(keyword()) :: {:ok, pid} | {:error, String.t}
   def start_link(opts) do
     {:ok, channel} = get_connection(opts[:hostname],opts[:port])
-    Registry.register(:etcd_registry, opts[:name], channel)
+    %GRPC.Channel{adapter_payload: %{conn_pid: pid}} = channel
+    {:ok, _} = Registry.register(:etcd_registry, opts[:name], channel)
+    {:ok, pid}
   end
 
   @spec get_connection(String.t(), String.t()) :: {:ok, GRPC.Channel.t()} | {:error, String.t()}
