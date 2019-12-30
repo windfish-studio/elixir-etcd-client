@@ -46,7 +46,9 @@ defmodule Etcdserverpb.InternalRaftRequest do
           auth_role_delete: Etcdserverpb.AuthRoleDeleteRequest.t() | nil,
           auth_role_get: Etcdserverpb.AuthRoleGetRequest.t() | nil,
           auth_role_grant_permission: Etcdserverpb.AuthRoleGrantPermissionRequest.t() | nil,
-          auth_role_revoke_permission: Etcdserverpb.AuthRoleRevokePermissionRequest.t() | nil
+          auth_role_revoke_permission: Etcdserverpb.AuthRoleRevokePermissionRequest.t() | nil,
+          cluster_version_set: Membershippb.ClusterVersionSetRequest.t() | nil,
+          cluster_member_attr_set: Membershippb.ClusterMemberAttrSetRequest.t() | nil
         }
   defstruct [
     :header,
@@ -76,7 +78,9 @@ defmodule Etcdserverpb.InternalRaftRequest do
     :auth_role_delete,
     :auth_role_get,
     :auth_role_grant_permission,
-    :auth_role_revoke_permission
+    :auth_role_revoke_permission,
+    :cluster_version_set,
+    :cluster_member_attr_set
   ]
 
   field :header, 100, type: Etcdserverpb.RequestHeader
@@ -107,6 +111,8 @@ defmodule Etcdserverpb.InternalRaftRequest do
   field :auth_role_get, 1202, type: Etcdserverpb.AuthRoleGetRequest
   field :auth_role_grant_permission, 1203, type: Etcdserverpb.AuthRoleGrantPermissionRequest
   field :auth_role_revoke_permission, 1204, type: Etcdserverpb.AuthRoleRevokePermissionRequest
+  field :cluster_version_set, 1300, type: Membershippb.ClusterVersionSetRequest
+  field :cluster_member_attr_set, 1301, type: Membershippb.ClusterMemberAttrSetRequest
 end
 
 defmodule Etcdserverpb.EmptyResponse do

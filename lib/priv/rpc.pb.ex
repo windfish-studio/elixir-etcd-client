@@ -1,3 +1,70 @@
+defmodule Etcdserverpb.AlarmType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :NONE, 0
+  field :NOSPACE, 1
+  field :CORRUPT, 2
+end
+
+defmodule Etcdserverpb.RangeRequest.SortOrder do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :NONE, 0
+  field :ASCEND, 1
+  field :DESCEND, 2
+end
+
+defmodule Etcdserverpb.RangeRequest.SortTarget do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :KEY, 0
+  field :VERSION, 1
+  field :CREATE, 2
+  field :MOD, 3
+  field :VALUE, 4
+end
+
+defmodule Etcdserverpb.Compare.CompareResult do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :EQUAL, 0
+  field :GREATER, 1
+  field :LESS, 2
+  field :NOT_EQUAL, 3
+end
+
+defmodule Etcdserverpb.Compare.CompareTarget do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :VERSION, 0
+  field :CREATE, 1
+  field :MOD, 2
+  field :VALUE, 3
+  field :LEASE, 4
+end
+
+defmodule Etcdserverpb.WatchCreateRequest.FilterType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :NOPUT, 0
+  field :NODELETE, 1
+end
+
+defmodule Etcdserverpb.AlarmRequest.AlarmAction do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :GET, 0
+  field :ACTIVATE, 1
+  field :DEACTIVATE, 2
+end
+
 defmodule Etcdserverpb.ResponseHeader do
   @moduledoc false
   use Protobuf, syntax: :proto3
@@ -64,26 +131,6 @@ defmodule Etcdserverpb.RangeRequest do
   field :max_mod_revision, 11, type: :int64
   field :min_create_revision, 12, type: :int64
   field :max_create_revision, 13, type: :int64
-end
-
-defmodule Etcdserverpb.RangeRequest.SortOrder do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :NONE, 0
-  field :ASCEND, 1
-  field :DESCEND, 2
-end
-
-defmodule Etcdserverpb.RangeRequest.SortTarget do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :KEY, 0
-  field :VERSION, 1
-  field :CREATE, 2
-  field :MOD, 3
-  field :VALUE, 4
 end
 
 defmodule Etcdserverpb.RangeResponse do
@@ -227,27 +274,6 @@ defmodule Etcdserverpb.Compare do
   field :value, 7, type: :bytes, oneof: 0
   field :lease, 8, type: :int64, oneof: 0
   field :range_end, 64, type: :bytes
-end
-
-defmodule Etcdserverpb.Compare.CompareResult do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :EQUAL, 0
-  field :GREATER, 1
-  field :LESS, 2
-  field :NOT_EQUAL, 3
-end
-
-defmodule Etcdserverpb.Compare.CompareTarget do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :VERSION, 0
-  field :CREATE, 1
-  field :MOD, 2
-  field :VALUE, 3
-  field :LEASE, 4
 end
 
 defmodule Etcdserverpb.TxnRequest do
@@ -430,14 +456,6 @@ defmodule Etcdserverpb.WatchCreateRequest do
   field :prev_kv, 6, type: :bool
   field :watch_id, 7, type: :int64
   field :fragment, 8, type: :bool
-end
-
-defmodule Etcdserverpb.WatchCreateRequest.FilterType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :NOPUT, 0
-  field :NODELETE, 1
 end
 
 defmodule Etcdserverpb.WatchCancelRequest do
@@ -693,14 +711,16 @@ defmodule Etcdserverpb.Member do
           ID: non_neg_integer,
           name: String.t(),
           peerURLs: [String.t()],
-          clientURLs: [String.t()]
+          clientURLs: [String.t()],
+          isLearner: boolean
         }
-  defstruct [:ID, :name, :peerURLs, :clientURLs]
+  defstruct [:ID, :name, :peerURLs, :clientURLs, :isLearner]
 
   field :ID, 1, type: :uint64
   field :name, 2, type: :string
   field :peerURLs, 3, repeated: true, type: :string
   field :clientURLs, 4, repeated: true, type: :string
+  field :isLearner, 5, type: :bool
 end
 
 defmodule Etcdserverpb.MemberAddRequest do
@@ -708,11 +728,13 @@ defmodule Etcdserverpb.MemberAddRequest do
   use Protobuf, syntax: :proto3
 
   @type t :: %__MODULE__{
-          peerURLs: [String.t()]
+          peerURLs: [String.t()],
+          isLearner: boolean
         }
-  defstruct [:peerURLs]
+  defstruct [:peerURLs, :isLearner]
 
   field :peerURLs, 1, repeated: true, type: :string
+  field :isLearner, 2, type: :bool
 end
 
 defmodule Etcdserverpb.MemberAddResponse do
@@ -807,6 +829,32 @@ defmodule Etcdserverpb.MemberListResponse do
   field :members, 2, repeated: true, type: Etcdserverpb.Member
 end
 
+defmodule Etcdserverpb.MemberPromoteRequest do
+  @moduledoc false
+  use Protobuf, syntax: :proto3
+
+  @type t :: %__MODULE__{
+          ID: non_neg_integer
+        }
+  defstruct [:ID]
+
+  field :ID, 1, type: :uint64
+end
+
+defmodule Etcdserverpb.MemberPromoteResponse do
+  @moduledoc false
+  use Protobuf, syntax: :proto3
+
+  @type t :: %__MODULE__{
+          header: Etcdserverpb.ResponseHeader.t() | nil,
+          members: [Etcdserverpb.Member.t()]
+        }
+  defstruct [:header, :members]
+
+  field :header, 1, type: Etcdserverpb.ResponseHeader
+  field :members, 2, repeated: true, type: Etcdserverpb.Member
+end
+
 defmodule Etcdserverpb.DefragmentRequest do
   @moduledoc false
   use Protobuf, syntax: :proto3
@@ -867,15 +915,6 @@ defmodule Etcdserverpb.AlarmRequest do
   field :alarm, 3, type: Etcdserverpb.AlarmType, enum: true
 end
 
-defmodule Etcdserverpb.AlarmRequest.AlarmAction do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :GET, 0
-  field :ACTIVATE, 1
-  field :DEACTIVATE, 2
-end
-
 defmodule Etcdserverpb.AlarmMember do
   @moduledoc false
   use Protobuf, syntax: :proto3
@@ -925,7 +964,8 @@ defmodule Etcdserverpb.StatusResponse do
           raftTerm: non_neg_integer,
           raftAppliedIndex: non_neg_integer,
           errors: [String.t()],
-          dbSizeInUse: integer
+          dbSizeInUse: integer,
+          isLearner: boolean
         }
   defstruct [
     :header,
@@ -936,7 +976,8 @@ defmodule Etcdserverpb.StatusResponse do
     :raftTerm,
     :raftAppliedIndex,
     :errors,
-    :dbSizeInUse
+    :dbSizeInUse,
+    :isLearner
   ]
 
   field :header, 1, type: Etcdserverpb.ResponseHeader
@@ -948,6 +989,7 @@ defmodule Etcdserverpb.StatusResponse do
   field :raftAppliedIndex, 7, type: :uint64
   field :errors, 8, repeated: true, type: :string
   field :dbSizeInUse, 9, type: :int64
+  field :isLearner, 10, type: :bool
 end
 
 defmodule Etcdserverpb.AuthEnableRequest do
@@ -986,12 +1028,14 @@ defmodule Etcdserverpb.AuthUserAddRequest do
 
   @type t :: %__MODULE__{
           name: String.t(),
-          password: String.t()
+          password: String.t(),
+          options: Authpb.UserAddOptions.t() | nil
         }
-  defstruct [:name, :password]
+  defstruct [:name, :password, :options]
 
   field :name, 1, type: :string
   field :password, 2, type: :string
+  field :options, 3, type: Authpb.UserAddOptions
 end
 
 defmodule Etcdserverpb.AuthUserGetRequest do
@@ -1344,15 +1388,6 @@ defmodule Etcdserverpb.AuthRoleRevokePermissionResponse do
   field :header, 1, type: Etcdserverpb.ResponseHeader
 end
 
-defmodule Etcdserverpb.AlarmType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :NONE, 0
-  field :NOSPACE, 1
-  field :CORRUPT, 2
-end
-
 defmodule Etcdserverpb.KV.Service do
   @moduledoc false
   use GRPC.Service, name: "etcdserverpb.KV"
@@ -1409,6 +1444,7 @@ defmodule Etcdserverpb.Cluster.Service do
   rpc :MemberRemove, Etcdserverpb.MemberRemoveRequest, Etcdserverpb.MemberRemoveResponse
   rpc :MemberUpdate, Etcdserverpb.MemberUpdateRequest, Etcdserverpb.MemberUpdateResponse
   rpc :MemberList, Etcdserverpb.MemberListRequest, Etcdserverpb.MemberListResponse
+  rpc :MemberPromote, Etcdserverpb.MemberPromoteRequest, Etcdserverpb.MemberPromoteResponse
 end
 
 defmodule Etcdserverpb.Cluster.Stub do
