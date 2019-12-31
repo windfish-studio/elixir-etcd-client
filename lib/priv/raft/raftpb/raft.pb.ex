@@ -1,56 +1,3 @@
-defmodule Raftpb.EntryType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto2
-
-  field :EntryNormal, 0
-  field :EntryConfChange, 1
-  field :EntryConfChangeV2, 2
-end
-
-defmodule Raftpb.MessageType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto2
-
-  field :MsgHup, 0
-  field :MsgBeat, 1
-  field :MsgProp, 2
-  field :MsgApp, 3
-  field :MsgAppResp, 4
-  field :MsgVote, 5
-  field :MsgVoteResp, 6
-  field :MsgSnap, 7
-  field :MsgHeartbeat, 8
-  field :MsgHeartbeatResp, 9
-  field :MsgUnreachable, 10
-  field :MsgSnapStatus, 11
-  field :MsgCheckQuorum, 12
-  field :MsgTransferLeader, 13
-  field :MsgTimeoutNow, 14
-  field :MsgReadIndex, 15
-  field :MsgReadIndexResp, 16
-  field :MsgPreVote, 17
-  field :MsgPreVoteResp, 18
-end
-
-defmodule Raftpb.ConfChangeTransition do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto2
-
-  field :ConfChangeTransitionAuto, 0
-  field :ConfChangeTransitionJointImplicit, 1
-  field :ConfChangeTransitionJointExplicit, 2
-end
-
-defmodule Raftpb.ConfChangeType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto2
-
-  field :ConfChangeAddNode, 0
-  field :ConfChangeRemoveNode, 1
-  field :ConfChangeUpdateNode, 2
-  field :ConfChangeAddLearnerNode, 3
-end
-
 defmodule Raftpb.Entry do
   @moduledoc false
   use Protobuf, syntax: :proto2
@@ -228,4 +175,57 @@ defmodule Raftpb.ConfChangeV2 do
   field :transition, 1, optional: true, type: Raftpb.ConfChangeTransition, enum: true
   field :changes, 2, repeated: true, type: Raftpb.ConfChangeSingle
   field :context, 3, optional: true, type: :bytes
+end
+
+defmodule Raftpb.EntryType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto2
+
+  field :EntryNormal, 0
+  field :EntryConfChange, 1
+  field :EntryConfChangeV2, 2
+end
+
+defmodule Raftpb.MessageType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto2
+
+  field :MsgHup, 0
+  field :MsgBeat, 1
+  field :MsgProp, 2
+  field :MsgApp, 3
+  field :MsgAppResp, 4
+  field :MsgVote, 5
+  field :MsgVoteResp, 6
+  field :MsgSnap, 7
+  field :MsgHeartbeat, 8
+  field :MsgHeartbeatResp, 9
+  field :MsgUnreachable, 10
+  field :MsgSnapStatus, 11
+  field :MsgCheckQuorum, 12
+  field :MsgTransferLeader, 13
+  field :MsgTimeoutNow, 14
+  field :MsgReadIndex, 15
+  field :MsgReadIndexResp, 16
+  field :MsgPreVote, 17
+  field :MsgPreVoteResp, 18
+end
+
+defmodule Raftpb.ConfChangeTransition do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto2
+
+  field :ConfChangeTransitionAuto, 0
+  field :ConfChangeTransitionJointImplicit, 1
+  field :ConfChangeTransitionJointExplicit, 2
+end
+
+defmodule Raftpb.ConfChangeType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto2
+
+  field :ConfChangeAddNode, 0
+  field :ConfChangeRemoveNode, 1
+  field :ConfChangeUpdateNode, 2
+  field :ConfChangeAddLearnerNode, 3
 end

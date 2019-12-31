@@ -1,12 +1,3 @@
-defmodule Authpb.Permission.Type do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :READ, 0
-  field :WRITE, 1
-  field :READWRITE, 2
-end
-
 defmodule Authpb.UserAddOptions do
   @moduledoc false
   use Protobuf, syntax: :proto3
@@ -51,6 +42,15 @@ defmodule Authpb.Permission do
   field :permType, 1, type: Authpb.Permission.Type, enum: true
   field :key, 2, type: :bytes
   field :range_end, 3, type: :bytes
+end
+
+defmodule Authpb.Permission.Type do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :READ, 0
+  field :WRITE, 1
+  field :READWRITE, 2
 end
 
 defmodule Authpb.Role do

@@ -35,7 +35,7 @@ defmodule EtcdClient.MixProject do
 
   defp deps do
     [
-      {:protobuf, "~> 0.7.0"},
+      {:protobuf, "~> 0.6.3"},
       {:dialyxir, "~> 1.0.0-rc.6", only: :dev, runtime: false},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:grpc, "~> 0.5.0-beta"},

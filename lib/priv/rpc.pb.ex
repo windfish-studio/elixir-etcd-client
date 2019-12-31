@@ -1,70 +1,3 @@
-defmodule Etcdserverpb.AlarmType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :NONE, 0
-  field :NOSPACE, 1
-  field :CORRUPT, 2
-end
-
-defmodule Etcdserverpb.RangeRequest.SortOrder do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :NONE, 0
-  field :ASCEND, 1
-  field :DESCEND, 2
-end
-
-defmodule Etcdserverpb.RangeRequest.SortTarget do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :KEY, 0
-  field :VERSION, 1
-  field :CREATE, 2
-  field :MOD, 3
-  field :VALUE, 4
-end
-
-defmodule Etcdserverpb.Compare.CompareResult do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :EQUAL, 0
-  field :GREATER, 1
-  field :LESS, 2
-  field :NOT_EQUAL, 3
-end
-
-defmodule Etcdserverpb.Compare.CompareTarget do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :VERSION, 0
-  field :CREATE, 1
-  field :MOD, 2
-  field :VALUE, 3
-  field :LEASE, 4
-end
-
-defmodule Etcdserverpb.WatchCreateRequest.FilterType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :NOPUT, 0
-  field :NODELETE, 1
-end
-
-defmodule Etcdserverpb.AlarmRequest.AlarmAction do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :GET, 0
-  field :ACTIVATE, 1
-  field :DEACTIVATE, 2
-end
-
 defmodule Etcdserverpb.ResponseHeader do
   @moduledoc false
   use Protobuf, syntax: :proto3
@@ -131,6 +64,26 @@ defmodule Etcdserverpb.RangeRequest do
   field :max_mod_revision, 11, type: :int64
   field :min_create_revision, 12, type: :int64
   field :max_create_revision, 13, type: :int64
+end
+
+defmodule Etcdserverpb.RangeRequest.SortOrder do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :NONE, 0
+  field :ASCEND, 1
+  field :DESCEND, 2
+end
+
+defmodule Etcdserverpb.RangeRequest.SortTarget do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :KEY, 0
+  field :VERSION, 1
+  field :CREATE, 2
+  field :MOD, 3
+  field :VALUE, 4
 end
 
 defmodule Etcdserverpb.RangeResponse do
@@ -274,6 +227,27 @@ defmodule Etcdserverpb.Compare do
   field :value, 7, type: :bytes, oneof: 0
   field :lease, 8, type: :int64, oneof: 0
   field :range_end, 64, type: :bytes
+end
+
+defmodule Etcdserverpb.Compare.CompareResult do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :EQUAL, 0
+  field :GREATER, 1
+  field :LESS, 2
+  field :NOT_EQUAL, 3
+end
+
+defmodule Etcdserverpb.Compare.CompareTarget do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :VERSION, 0
+  field :CREATE, 1
+  field :MOD, 2
+  field :VALUE, 3
+  field :LEASE, 4
 end
 
 defmodule Etcdserverpb.TxnRequest do
@@ -456,6 +430,14 @@ defmodule Etcdserverpb.WatchCreateRequest do
   field :prev_kv, 6, type: :bool
   field :watch_id, 7, type: :int64
   field :fragment, 8, type: :bool
+end
+
+defmodule Etcdserverpb.WatchCreateRequest.FilterType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :NOPUT, 0
+  field :NODELETE, 1
 end
 
 defmodule Etcdserverpb.WatchCancelRequest do
@@ -913,6 +895,15 @@ defmodule Etcdserverpb.AlarmRequest do
   field :action, 1, type: Etcdserverpb.AlarmRequest.AlarmAction, enum: true
   field :memberID, 2, type: :uint64
   field :alarm, 3, type: Etcdserverpb.AlarmType, enum: true
+end
+
+defmodule Etcdserverpb.AlarmRequest.AlarmAction do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :GET, 0
+  field :ACTIVATE, 1
+  field :DEACTIVATE, 2
 end
 
 defmodule Etcdserverpb.AlarmMember do
@@ -1386,6 +1377,15 @@ defmodule Etcdserverpb.AuthRoleRevokePermissionResponse do
   defstruct [:header]
 
   field :header, 1, type: Etcdserverpb.ResponseHeader
+end
+
+defmodule Etcdserverpb.AlarmType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :NONE, 0
+  field :NOSPACE, 1
+  field :CORRUPT, 2
 end
 
 defmodule Etcdserverpb.KV.Service do

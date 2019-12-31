@@ -1,11 +1,3 @@
-defmodule Mvccpb.Event.EventType do
-  @moduledoc false
-  use Protobuf, enum: true, syntax: :proto3
-
-  field :PUT, 0
-  field :DELETE, 1
-end
-
 defmodule Mvccpb.KeyValue do
   @moduledoc false
   use Protobuf, syntax: :proto3
@@ -42,4 +34,12 @@ defmodule Mvccpb.Event do
   field :type, 1, type: Mvccpb.Event.EventType, enum: true
   field :kv, 2, type: Mvccpb.KeyValue
   field :prev_kv, 3, type: Mvccpb.KeyValue
+end
+
+defmodule Mvccpb.Event.EventType do
+  @moduledoc false
+  use Protobuf, enum: true, syntax: :proto3
+
+  field :PUT, 0
+  field :DELETE, 1
 end
