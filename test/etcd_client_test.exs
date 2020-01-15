@@ -96,26 +96,30 @@ defmodule EtcdClientTest do
   test "add, cancel, listen to a watch" do
     EtcdClient.start_link([hostname: "localhost", port: "2379", name: ETCD])
     EtcdClient.start_watcher(ETCD, "watcher1", self())
-    EtcdClient.add_watch("foo", "\0", "watcher1", 1)
+    EtcdClient.add_watch("foo", "\0", "watcher1", 0)
+    event = listen()
+    assert elem(event, 1).created == true
+    assert elem(event, 1).watch_id == 0
+    EtcdClient.add_watch("boo", "\0", "watcher1", 1)
     event = listen()
     assert elem(event, 1).created == true
     assert elem(event, 1).watch_id == 1
-    EtcdClient.add_watch("boo", "\0", "watcher1", 2)
-    event = listen()
-    assert elem(event, 1).created == true
-    assert elem(event, 1).watch_id == 2
-    EtcdClient.cancel_watch("watcher1", 2)
-    event = listen()
-    assert elem(event, 1).canceled == true
-    assert elem(event, 1).watch_id == 2
-    EtcdClient.put_kv_pair(ETCD, "foo", "bar")
+    EtcdClient.put_kv_pair(ETCD, "boo", "foo")
     event = listen()
     assert Enum.fetch!(elem(event, 1).events, 0).type == :PUT
     assert elem(event, 1).watch_id == 1
+    EtcdClient.cancel_watch("watcher1", 1)
+    event = listen()
+    assert elem(event, 1).canceled == true
+    assert elem(event, 1).watch_id == 1
+    EtcdClient.put_kv_pair(ETCD, "foo", "bar")
+    event = listen()
+    assert Enum.fetch!(elem(event, 1).events, 0).type == :PUT
+    assert elem(event, 1).watch_id == 0
     EtcdClient.delete_kv_pair(ETCD, "foo")
     event = listen()
     assert Enum.fetch!(elem(event, 1).events, 0).type == :DELETE
-    assert elem(event, 1).watch_id == 1
+    assert elem(event, 1).watch_id == 0
     pid = elem(Enum.fetch!(Registry.lookup(:etcd_registry, "watcher1"), 0),0)
     response = EtcdClient.kill_watcher("watcher1")
     assert response == :ok
@@ -132,7 +136,7 @@ defmodule EtcdClientTest do
     EtcdClient.add_watch("watcher1", watch_create_request)
     event = listen()
     assert elem(event, 1).created == true
-    assert elem(event, 1).watch_id == 1
+    assert elem(event, 1).watch_id == 0
     EtcdClient.put_kv_pair(ETCD, "foo", "bar")
     EtcdClient.delete_kv_pair(ETCD, "foo")
     event = listen()
